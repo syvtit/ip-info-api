@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>ifconfig.7it.vn – What is my IP address?</title>
+
+  <!-- SEO -->
+  <meta name="description" content="Check your public IPv4 and IPv6 address instantly. Simple, fast, and privacy-friendly IP lookup tool." />
+  <meta name="keywords" content="what is my ip, ip address, ipv4, ipv6, ifconfig, ip lookup" />
+  <meta name="author" content="7IT" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="ifconfig.7it.vn – What is my IP address?" />
+  <meta property="og:description" content="Instantly check your public IPv4 and IPv6 address." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ifconfig.7it.vn/" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="ifconfig.7it.vn – What is my IP address?" />
+  <meta name="twitter:description" content="Instant IPv4 & IPv6 address lookup." />
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "ifconfig.7it.vn",
+    "url": "https://ifconfig.7it.vn/",
+    "description": "Check your public IPv4 and IPv6 address instantly.",
+    "inLanguage": "en"
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #121826;
+      --text: #e6edf3;
+      --muted: #9aa4b2;
+      --accent: #58a6ff;
+      --ok: #3fb950;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .value {
+      font-size: 16px;
+      word-break: break-all;
+    }
+
+    pre {
+      background: #020409;
+      padding: 14px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      margin: 0;
+    }
+
+    button {
+      margin-top: 10px;
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    footer {
+      margin-top: 32px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <h1>ifconfig.7it.vn</h1>
+  <div class="subtitle">
+    Display your public IPv4, IPv6, and current connection information
+  </div>
+
+  <!-- Static text for SEO bots -->
+  <p style="display:none">
+    ifconfig.7it.vn is a free online tool to check your public IP address,
+    including IPv4 and IPv6, and understand how your device connects to the Internet.
+  </p>
+
+  <!-- MAIN INFO -->
+  <div class="grid">
+    <div class="card">
+      <div class="label">IPv4 Address</div>
+      <div class="value" id="ipv4">Loading…</div>
+    </div>
+
+    <div class="card">
+      <div class="label">IPv6 Address</div>
+      <div class="value" id="ipv6">Loading…</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Current Connection IP</div>
+      <div class="value" id="current-ip">Loading…</div>
+    </div>
+
+    <div class="card">
+      <div class="label">IP Version / Scope</div>
+      <div class="value" id="meta">Loading…</div>
+    </div>
+  </div>
+
+  <!-- DETAILS -->
+  <div class="card" style="margin-top:16px;">
+    <div class="label">Full Details (JSON)</div>
+    <pre id="details">Loading…</pre>
+    <button onclick="copyDetails()">Copy to clipboard</button>
+  </div>
+
+  <footer>
+    Generated at <span id="time"></span>
+  </footer>
+</div>
+
+<script>
+(async () => {
+  const $ = (id) => document.getElementById(id);
+
+  const fetchText = async (url) => {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error();
+    return (await r.text()).trim();
+  };
+
+  const fetchJson = async (url) => {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error();
+    return await r.json();
+  };
+
+  // Forced IPv4 / IPv6
+  let ipv4 = "N/A";
+  let ipv6 = "N/A";
+
+  try { ipv4 = await fetchText("https://ipv4.ifconfig.7it.vn/raw"); } catch {}
+  try { ipv6 = await fetchText("https://ipv6.ifconfig.7it.vn/raw"); } catch {}
+
+  $("ipv4").textContent = ipv4;
+  $("ipv6").textContent = ipv6;
+
+  // Current connection info
+  let info;
+  try {
+    info = await fetchJson("/json");
+  } catch {
+    $("details").textContent = "Failed to load connection details";
+    return;
+  }
+
+  $("current-ip").textContent = info.ip;
+  $("meta").textContent = `${info.version} / ${info.scope}`;
+  $("details").textContent = JSON.stringify(info, null, 2);
+  $("time").textContent = new Date().toLocaleString();
+})();
+
+function copyDetails() {
+  const text = document.getElementById("details").textContent;
+  navigator.clipboard.writeText(text);
+  alert("Copied to clipboard");
+}
+</script>
+</body>
+</html>

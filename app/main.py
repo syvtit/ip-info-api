@@ -1,55 +1,106 @@
+from __future__ import annotations
+
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import ipaddress
 
-app = FastAPI()
+app = FastAPI(title="ifconfig.7it.vn")
+
+# UI
+app.mount("/ui", StaticFiles(directory="app/static", html=True), name="ui")
 
 
-def get_ip_info(request: Request):
-    x_forwarded_for = request.headers.get("x-forwarded-for")
+# -----------------------
+# Helpers
+# -----------------------
+def _first_ip_from_xff(xff: str | None) -> str | None:
+    if not xff:
+        return None
+    return xff.split(",")[0].strip() or None
 
-    if x_forwarded_for:
-        ip_list = [ip.strip() for ip in x_forwarded_for.split(",")]
-        real_ip = ip_list[0]
-        proxy_chain = ip_list
-    else:
-        real_ip = request.client.host
-        proxy_chain = []
 
-    return real_ip, proxy_chain, x_forwarded_for
+def get_client_ip(request: Request) -> str:
+    return (
+        request.headers.get("cf-connecting-ip")
+        or _first_ip_from_xff(request.headers.get("x-forwarded-for"))
+        or request.client.host
+    )
+
+
+def ip_meta(ip: str) -> dict:
+    try:
+        obj = ipaddress.ip_address(ip)
+        return {
+            "version": "IPv4" if obj.version == 4 else "IPv6",
+            "scope": "private" if obj.is_private else "public",
+        }
+    except ValueError:
+        return {"version": "unknown", "scope": "unknown"}
+
+
+# -----------------------
+# Routes
+# -----------------------
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/ui", status_code=307)
+
+
+@app.get("/raw", response_class=PlainTextResponse)
+def raw(request: Request):
+    """Machine‑friendly"""
+    return get_client_ip(request)
 
 
 @app.get("/", response_class=PlainTextResponse)
-def info(request: Request):
-    ip, proxy_chain, xff = get_ip_info(request)
+def human(request: Request):
+    """CLI / human‑friendly"""
+    ip = get_client_ip(request)
+    meta = ip_meta(ip)
 
-    try:
-        ip_obj = ipaddress.ip_address(ip)
-        version = "IPv4" if ip_obj.version == 4 else "IPv6"
-        is_private = ip_obj.is_private
-        is_global = ip_obj.is_global
-    except:
-        version = "Unknown"
-        is_private = "N/A"
-        is_global = "N/A"
+    xff = request.headers.get("x-forwarded-for")
+    chain = [s.strip() for s in xff.split(",")] if xff else [ip]
 
-    ipv4 = ip if "." in ip else "N/A"
-    ipv6 = ip if ":" in ip else "N/A"
+    lines = [
+        f"IP: {ip}",
+        f"Version: {meta['version']}",
+        f"Scope: {meta['scope'].capitalize()}",
+        "",
+        "Proxy chain:",
+        *[f"  - {c}" for c in chain],
+    ]
+    return "\n".join(lines)
 
-    user_agent = request.headers.get("user-agent", "unknown")
 
-    output = f"""
-ip: {ip}
-ipv4: {ipv4}
-ipv6: {ipv6}
-version: {version}
-private: {is_private}
-global: {is_global}
+@app.get("/json", response_class=JSONResponse)
+def json_api(request: Request):
+    """API‑friendly"""
+    ip = get_client_ip(request)
+    meta = ip_meta(ip)
 
-x-forwarded-for: {xff}
-proxy-chain: {proxy_chain}
+    xff = request.headers.get("x-forwarded-for")
+    chain = [s.strip() for s in xff.split(",")] if xff else [ip]
 
-user-agent: {user_agent}
-"""
+    return {
+        "ip": ip,
+        "version": meta["version"],
+        "scope": meta["scope"],
+        "proxy_chain": chain,
+        "user_agent": request.headers.get("user-agent"),
+    }
 
-    return output.strip()
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    return FileResponse("app/static/robots.txt", media_type="text/plain")
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    return FileResponse("app/static/sitemap.xml", media_type="application/xml")
+
+
+@app.get("/health", response_class=JSONResponse)
+def health():
+    return {"status": "ok"}
