@@ -189,7 +189,7 @@
   let ipv4 = "N/A";
   let ipv6 = "N/A";
 
-  try { ipv4 = await fetchText("https://ipv4.ifconfig.7it.vn/raw"); } catch {}
+  try { ipv4 = await fetchText("http://ipv4.ifconfig.7it.vn/raw"); } catch {}
   try { ipv6 = await fetchText("https://ipv6.ifconfig.7it.vn/raw"); } catch {}
 
   $("ipv4").textContent = ipv4;
