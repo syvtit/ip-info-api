@@ -22,7 +22,7 @@ def _first_ip_from_xff(xff: str | None) -> str | None:
 
 def get_client_ip(request: Request) -> str:
     return (
-        request.headers.get("cf-connecting-ip")
+        request.headers.get("cf-connecting-ip")  # Cloudflare
         or _first_ip_from_xff(request.headers.get("x-forwarded-for"))
         or request.client.host
     )
@@ -39,44 +39,37 @@ def ip_meta(ip: str) -> dict:
         return {"version": "unknown", "scope": "unknown"}
 
 
+def is_cli(request: Request) -> bool:
+    ua = (request.headers.get("user-agent") or "").lower()
+    return any(x in ua for x in ["curl", "wget", "httpie"])
+
+
 # -----------------------
 # Routes
 # -----------------------
 
-@app.get("/", include_in_schema=False)
-def root():
+@app.get("/", response_class=PlainTextResponse)
+def root(request: Request):
+    """
+    Smart root:
+    - CLI → trả IP (giống ifconfig.io)
+    - Browser → redirect UI
+    """
+    if is_cli(request):
+        return get_client_ip(request)
+
     return RedirectResponse("/ui", status_code=307)
 
 
 @app.get("/raw", response_class=PlainTextResponse)
 def raw(request: Request):
-    """Machine‑friendly"""
+    """Machine-friendly"""
     return get_client_ip(request)
-
-
-@app.get("/", response_class=PlainTextResponse)
-def human(request: Request):
-    """CLI / human‑friendly"""
-    ip = get_client_ip(request)
-    meta = ip_meta(ip)
-
-    xff = request.headers.get("x-forwarded-for")
-    chain = [s.strip() for s in xff.split(",")] if xff else [ip]
-
-    lines = [
-        f"IP: {ip}",
-        f"Version: {meta['version']}",
-        f"Scope: {meta['scope'].capitalize()}",
-        "",
-        "Proxy chain:",
-        *[f"  - {c}" for c in chain],
-    ]
-    return "\n".join(lines)
 
 
 @app.get("/json", response_class=JSONResponse)
 def json_api(request: Request):
-    """API‑friendly"""
+    """API-friendly"""
     ip = get_client_ip(request)
     meta = ip_meta(ip)
 
@@ -92,15 +85,22 @@ def json_api(request: Request):
     }
 
 
-@app.get("/robots.txt", include_in_schema=False)
-def robots():
-    return FileResponse("app/static/robots.txt", media_type="text/plain")
-
-@app.get("/sitemap.xml", include_in_schema=False)
-def sitemap():
-    return FileResponse("app/static/sitemap.xml", media_type="application/xml")
+@app.get("/headers", response_class=JSONResponse)
+def headers(request: Request):
+    """Debug headers"""
+    return dict(request.headers)
 
 
 @app.get("/health", response_class=JSONResponse)
 def health():
     return {"status": "ok"}
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    return FileResponse("app/static/robots.txt", media_type="text/plain")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    return FileResponse("app/static/sitemap.xml", media_type="application/xml")
