@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://ifconfig.7it.vn/sitemap.xml

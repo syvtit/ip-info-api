@@ -21,5 +21,5 @@ jobs:
       - name: Build & Push image
         run: |
           IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/ip-info-api
-          docker build -t $IMAGE:latest .
-          docker push $IMAGE:latest
+          docker build -t $IMAGE:stable .
+          docker push $IMAGE:stable
