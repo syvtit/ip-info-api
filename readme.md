@@ -26,6 +26,6 @@ Inspired by tools like `ifconfig.me`, `ipify`, and `showmyip`, but designed to b
 
 ### Run with Docker (recommended)
 
-docker pull syvtit/ip-info-api:latest
-docker run -d --name ifconfig -p 8000:8000 syvtit/ip-info-api:latest
+docker pull syvtit/ip-info-api:stable
+docker run -d --name ifconfig -p 8000:8000 syvtit/ip-info-api:stable
 
